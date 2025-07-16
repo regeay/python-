@@ -1,7 +1,7 @@
 import gradio as gr
 import os
-from chat import chat  # 导入 chat.py 中的 chat 函数
 from search import search  # 导入搜索模块
+from chat import  chat # 导入流式聊天
 
 messages = []
 history = []
@@ -22,6 +22,7 @@ def add_file(history, file):
     return history
 
 def bot(history):
+
     user_input = messages[-1]["content"]
 
     # 判断是否是搜索指令
@@ -30,18 +31,21 @@ def bot(history):
         try:
             enriched_query = search(content)
         except Exception as e:
-            assistant_reply = f"Search failed: {e}"
+            assistant_generator = iter([f"Search failed: {e}"])
         else:
             messages[-1]["content"] = enriched_query
-            assistant_reply = chat(messages)
+            assistant_generator = chat(messages)  # 流式生成
     else:
-        # 调用模型得到回复
-        assistant_reply = chat(messages)
+        assistant_generator = chat(messages)      # 流式生成
 
-    # 更新 messages 和 history
-    messages.append({"role": "assistant", "content": assistant_reply})
-    history[-1][1] = assistant_reply
-    return history
+    partial_reply = "" # 累积的回复
+    for chunk in assistant_generator:
+        partial_reply += chunk
+        history[-1] = (user_input, partial_reply)  # 替换最后一个元组
+        yield history                             # 每得到新内容就推送
+
+    #  messages 最终同步 
+    messages.append({"role": "assistant", "content": partial_reply})
 
 
 with gr.Blocks() as demo:
@@ -81,4 +85,3 @@ with gr.Blocks() as demo:
 
 demo.queue()
 demo.launch()
-
