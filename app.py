@@ -2,6 +2,7 @@ import gradio as gr
 import os
 from search import search  # 导入搜索模块
 from chat import  chat # 导入流式聊天
+from fetch import fetch # 导入网页总结
 
 messages = []
 history = []
@@ -32,6 +33,16 @@ def bot(history):
             enriched_query = search(content)
         except Exception as e:
             assistant_generator = iter([f"Search failed: {e}"])
+        else:
+            messages[-1]["content"] = enriched_query
+            assistant_generator = chat(messages)  # 流式生成
+    # 判断是否是搜索指令
+    elif user_input.strip().lower().startswith("/fetch "):
+        url = user_input.strip()[7:]
+        try:
+            enriched_query = fetch(url)
+        except Exception as e:
+            assistant_generator = iter([f"Fetch failed: {e}"])
         else:
             messages[-1]["content"] = enriched_query
             assistant_generator = chat(messages)  # 流式生成
