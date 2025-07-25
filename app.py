@@ -107,7 +107,7 @@ def bot(history):
                         partial_reply += chunk
                         history[-1] = (user_input, partial_reply)
                         yield history
-                    # 重点：messages记录纯URL（符合要求格式）
+                    # messages记录图片URL
                     messages.append({"role": "assistant", "content": image_url})
                     return
                 else:
