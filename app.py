@@ -4,6 +4,8 @@ from search import search  # 导入搜索模块
 from chat import  chat # 导入流式聊天
 from fetch import fetch # 导入网页总结
 from pdf import * # 导入文件聊天
+from image_generate import image_generate # 导入图片生成
+
 
 messages = []
 history = []
@@ -76,6 +78,60 @@ def bot(history):
         else:
             messages[-1]["content"] = question
             assistant_generator = chat(messages)  # 流式生成
+    # 判断是否是图片生成指令
+    elif isinstance(user_input, str) and user_input.strip().lower().startswith("/image "):
+        image_prompt = user_input.strip()[7:].strip()
+        if not image_prompt:
+            # 无描述时：界面显示提示文本，messages记录提示文本
+            response_text = "请提供图片描述，例如: /image a baby sea otter"
+            assistant_generator = iter([response_text])
+            # 推送界面显示
+            partial_reply = ""
+            for chunk in assistant_generator:
+                partial_reply += chunk
+                history[-1] = (user_input, partial_reply)
+                yield history
+            # 更新messages（记录提示文本）
+            messages.append({"role": "assistant", "content": response_text})
+            return
+        else:
+            try:
+                image_url = image_generate(image_prompt)
+                if image_url:
+                    # 界面显示：带Markdown格式的图片
+                    display_text = f"![生成的图片]({image_url})"
+                    assistant_generator = iter([display_text])
+                    # 推送界面显示
+                    partial_reply = ""
+                    for chunk in assistant_generator:
+                        partial_reply += chunk
+                        history[-1] = (user_input, partial_reply)
+                        yield history
+                    # messages记录图片URL
+                    messages.append({"role": "assistant", "content": image_url})
+                    return
+                else:
+                    # 生成失败时：界面和messages均记录失败提示
+                    response_text = "图片生成失败，请稍后重试"
+                    assistant_generator = iter([response_text])
+                    partial_reply = ""
+                    for chunk in assistant_generator:
+                        partial_reply += chunk
+                        history[-1] = (user_input, partial_reply)
+                        yield history
+                    messages.append({"role": "assistant", "content": response_text})
+                    return
+            except Exception as e:
+                error_text = f"图片生成错误: {str(e)}"
+                assistant_generator = iter([error_text])
+                partial_reply = ""
+                for chunk in assistant_generator:
+                    partial_reply += chunk
+                    history[-1] = (user_input, partial_reply)
+                    yield history
+                messages.append({"role": "assistant", "content": error_text})
+                return
+
     else:
         assistant_generator = chat(messages)      # 流式生成
 
